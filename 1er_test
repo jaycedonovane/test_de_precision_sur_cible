@@ -1,0 +1,116 @@
+import tkinter as tk
+import random
+import time
+
+class TargetGame:
+    def __init__(self, master):
+        self.master = master
+        self.canvas_width = 400
+        self.canvas_height = 400
+        self.target_size = 20
+        self.points = 0
+        self.missed_targets = 0
+        self.targets = []
+        self.target_timer = None
+        self.start_time = None
+        self.end_time = None
+        
+        self.canvas = tk.Canvas(self.master, width=self.canvas_width, height=self.canvas_height)
+        self.canvas.pack()
+        
+        self.time_label = tk.Label(self.master, text="Durée: 0 secondes")
+        self.time_label.pack()
+        
+        self.accuracy_label = tk.Label(self.master, text="Précision: 0%")
+        self.accuracy_label.pack()
+        
+        self.start_button = tk.Button(self.master, text="Commencer", command=self.start_game)
+        self.start_button.place(relx=0.5, rely=0.5, anchor="center")
+    
+    def start_game(self):
+        self.start_button.destroy()
+        self.start_time = time.time()
+        self.create_target()
+        self.update_timer()
+    
+    def create_target(self):
+        if self.missed_targets >= 3:
+            self.game_over()
+            return
+        
+        x1 = random.randint(self.target_size, self.canvas_width - self.target_size)
+        y1 = random.randint(self.target_size, self.canvas_height - self.target_size)
+        x2 = x1 + self.target_size
+        y2 = y1 + self.target_size
+        
+        target = self.canvas.create_oval(x1, y1, x2, y2, fill="red", tags="target")
+        self.targets.append(target)
+        
+        self.canvas.tag_bind(target, "<Button-1>", lambda event, target=target: self.target_clicked(event, target))
+        
+        self.master.after(4000, lambda: self.remove_target(target))
+        self.master.after(500, self.create_target)
+    
+    def remove_target(self, target):
+        if target in self.targets:
+            self.missed_targets += 1
+            self.targets.remove(target)
+            self.canvas.delete(target)
+    
+    def target_clicked(self, event, target):
+        self.points += 1
+        self.targets.remove(target)
+        self.canvas.delete(target)
+    
+    def game_over(self):
+        self.canvas.delete("target")
+        
+        self.end_time = time.time()
+        duration = round(self.end_time - self.start_time)
+        
+        if duration > 0:
+            accuracy = round((self.points / (self.points + self.missed_targets)) * 100, 2)
+        else:
+            accuracy = 0
+        
+        game_over_label = tk.Label(self.master, text="Perdu!\nScore: {}\nDurée: {} secondes\nPrécision: {}%".format(self.points, duration, accuracy),
+                                   fg="red", font=("Arial", 24, "bold"))
+        game_over_label.place(relx=0.5, rely=0.5, anchor="center")
+        
+        restart_button = tk.Button(self.master, text="Recommencer", command=self.restart_game)
+        restart_button.place(relx=0.5, rely=0.5, anchor="center")
+        
+        self.accuracy_label.pack_forget()
+    
+    def restart_game(self):
+        self.points = 0
+        self.missed_targets = 0
+        self.targets = []
+        
+        for widget in self.master.winfo_children():
+            if isinstance(widget, tk.Label) or isinstance(widget, tk.Button):
+                widget.destroy()
+        
+        if not self.time_label.winfo_exists():
+            self.time_label = tk.Label(self.master, text="Durée: 0 secondes")
+        self.time_label.pack()
+
+        if not self.accuracy_label.winfo_exists():
+            self.accuracy_label = tk.Label(self.master, text="Précision: 0%")
+        self.accuracy_label.pack()
+        
+        self.start_time = time.time()
+        self.create_target()
+        self.update_timer()
+    
+    def update_timer(self):
+        if self.start_time is not None:
+            duration = round(time.time() - self.start_time, 2)
+            if self.missed_targets < 3:
+                self.time_label.config(text="Durée: {} secondes".format(duration))
+                self.master.after(10, self.update_timer)
+    
+root = tk.Tk()
+root.title("Test de précision sur cible")
+game = TargetGame(root)
+root.mainloop()
